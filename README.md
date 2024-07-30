@@ -25,7 +25,7 @@ Before running the application, make sure you have the following installed:
 
 ## Installation
 
-1. Clone the repository: `git clone https://github.com/jailsonsb2/Radio-Now-Playing-API.git`
+1. Clone the repository: `git clone https://github.com/jailsonsb2/radio-metadata-api`
 2. Navigate to the project directory: `cd Radio-Now-Playing-API`
 3. Create a virtual environment (recommended): `python -m venv .venv`
 4. Activate the virtual environment: 
@@ -44,7 +44,7 @@ The application uses a SQLite database (`radio_data.db`) to store stream history
 2. Follow the instructions on Digital Ocean to deploy your app.
 3. Enjoy your FastAPI app running in the cloud!
 
-[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/jailsonsb2/Radio-Now-Playing-API/tree/main)
+[![Deploy to DO](https://www.deploytodo.com/do-btn-blue.svg)](https://cloud.digitalocean.com/apps/new?repo=https://github.com/jailsonsb2/radio-metadata-api/tree/main)
 
 Don't have an account? Get a $200 bonus to test it out!
 
