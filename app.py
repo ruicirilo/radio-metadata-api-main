@@ -81,6 +81,7 @@ def get_db():
 
 # Dicionário para armazenar o timestamp da última música tocada por URL
 last_song_timestamp: Dict[str, datetime] = {}
+last_played_song: Dict[str, Tuple[str, str]] = {}
 
 
 # Função para obter a capa do álbum
@@ -236,6 +237,8 @@ async def startup_event():
     try:
         last_played_records = db.query(LastPlayedSong).all()
         for record in last_played_records:
+            # Define o fuso horário para played_at
+            record.played_at = record.played_at.replace(tzinfo=timezone.utc) 
             last_played_song[record.radio_url] = (record.artist, record.song)
     finally:
         db.close()
