@@ -1,5 +1,5 @@
 from typing import Optional, Tuple, Dict
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 import requests
 import aiohttp
@@ -31,6 +31,7 @@ app.add_middleware(
 
 DATA_DIR = "radio_data"
 SONG_HISTORY_LIMIT = 5
+MIN_HISTORY_INTERVAL = 30
 
 # === Configuração do Banco de Dados SQLite ===
 DATABASE_URL = "sqlite:///./radio_data.db"
@@ -76,6 +77,8 @@ def get_db():
 
 # Dicionário para armazenar a última música tocada por URL
 last_played_song: Dict[str, Tuple[str, str]] = {}  
+last_song_timestamp: Dict[str, datetime] = {}
+
 
 # Função para obter a capa do álbum
 def get_album_art(artist: str, song: str) -> Optional[str]:
@@ -154,9 +157,12 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
         artist, song = extract_artist_and_song(title)
         art_url = get_album_art(artist, song)
 
-        # Verifica se a música mudou para a URL
+        # Verifica se a música mudou para a URL e se passou tempo suficiente
         last_song = last_played_song.get(url)
-        if last_song is None or (artist, song) != last_song:
+        if last_song is None or (
+            (artist, song) != last_song and 
+            (datetime.now(timezone.utc) - last_song_timestamp.get(url, datetime.min)) > timedelta(seconds=MIN_HISTORY_INTERVAL)
+        ):
             # Salva a música no histórico
             new_song = SongHistory(radio_url=url, artist=artist, song=song)
             db.add(new_song)
@@ -166,13 +172,16 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
             if last_played_db:
                 last_played_db.artist = artist
                 last_played_db.song = song
-                last_played_db.played_at = datetime.utcnow()
+                last_played_db.played_at = datetime.now(timezone.utc)
             else:
                 last_played_db = LastPlayedSong(radio_url=url, artist=artist, song=song)
                 db.add(last_played_db)
 
             db.commit()
-            last_played_song[url] = (artist, song)  # Atualiza o cache em memória
+
+            # Atualiza o cache em memória e o timestamp APENAS se a música mudou
+            last_played_song[url] = (artist, song) 
+            last_song_timestamp[url] = datetime.now(timezone.utc) 
 
         return {"artist": artist, "song": song, "art": art_url}
     except Exception as e:
@@ -224,3 +233,4 @@ async def startup_event():
             last_played_song[record.radio_url] = (record.artist, record.song)
     finally:
         db.close()
+
