@@ -30,7 +30,7 @@ app.add_middleware(
 )
 
 DATA_DIR = "radio_data"
-SONG_HISTORY_LIMIT = 10
+SONG_HISTORY_LIMIT = 5
 
 # === Configuração do Banco de Dados SQLite ===
 DATABASE_URL = "sqlite:///./radio_data.db"
