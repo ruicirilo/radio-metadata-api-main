@@ -63,7 +63,7 @@ class LastPlayedSong(Base):
     radio_url = Column(String, primary_key=True, index=True)  # URL da rádio como chave primária
     artist = Column(String)
     song = Column(String)
-    played_at = Column(DateTime, default=datetime.utcnow)
+    played_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
 
 Base.metadata.create_all(bind=engine)
@@ -184,7 +184,7 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
             else:
                 last_played_db.artist = artist
                 last_played_db.song = song
-                last_played_db.played_at = datetime.now(timezone.utc)
+                last_played_db.played_at = datetime.now(timezone.utc)  # Define played_at como aware
 
             db.commit()
 
