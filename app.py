@@ -193,7 +193,6 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stream: {str(e)}")
 
-
 @app.get("/radio_info/")
 async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(get_db)):
     """Retorna a última música tocada e o histórico da rádio."""
