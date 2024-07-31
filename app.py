@@ -79,10 +79,6 @@ def get_db():
 
 # === Fim da Configuração do Banco de Dados ===
 
-# Dicionário para armazenar o timestamp da última música tocada por URL
-last_song_timestamp: Dict[str, datetime] = {}
-
-
 # Função para obter a capa do álbum
 def get_album_art(artist: str, song: str) -> Optional[str]:
     try:
@@ -171,7 +167,7 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
         if (
             last_played_db is None
             or (artist, song) != (last_played_db.artist, last_played_db.song)
-            and (datetime.now(timezone.utc) - last_played_db.played_at) > timedelta(seconds=MIN_HISTORY_INTERVAL)
+            and (datetime.utcnow() - last_played_db.played_at) > timedelta(seconds=MIN_HISTORY_INTERVAL)
         ):
             # Salva a música no histórico
             new_song = SongHistory(radio_url=url, artist=artist, song=song)
@@ -184,7 +180,7 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
             else:
                 last_played_db.artist = artist
                 last_played_db.song = song
-                last_played_db.played_at = datetime.now(timezone.utc)  # Define played_at como aware
+                last_played_db.played_at = datetime.utcnow()  # Define played_at como aware
 
             db.commit()
 
