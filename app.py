@@ -81,7 +81,6 @@ def get_db():
 
 # Dicionário para armazenar o timestamp da última música tocada por URL
 last_song_timestamp: Dict[str, datetime] = {}
-last_played_song: Dict[str, Tuple[str, str]] = {}
 
 
 # Função para obter a capa do álbum
@@ -194,6 +193,7 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stream: {str(e)}")
 
+
 @app.get("/radio_info/")
 async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(get_db)):
     """Retorna a última música tocada e o histórico da rádio."""
@@ -229,7 +229,6 @@ async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(g
 
     return response
 
-# Função para carregar a última música tocada do banco de dados ao iniciar o servidor
 @app.on_event("startup")
 async def startup_event():
     """Carrega as últimas músicas tocadas ao iniciar."""
@@ -239,7 +238,5 @@ async def startup_event():
         for record in last_played_records:
             # Define o fuso horário para played_at
             record.played_at = record.played_at.replace(tzinfo=timezone.utc) 
-            last_played_song[record.radio_url] = (record.artist, record.song)
     finally:
         db.close()
-
