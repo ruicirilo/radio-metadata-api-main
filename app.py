@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 import requests
 import aiohttp
 from fastapi import FastAPI, Depends, HTTPException
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import (
     create_engine,
@@ -151,76 +151,73 @@ async def root():
 
 
 @app.get("/get_stream_title/")
-async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Session = Depends(get_db)):
+async def get_stream_title_endpoint(url: str, interval: Optional[int] = 19200) -> Optional[str]:
+    """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
+    return await get_mp3_stream_title(url, interval)
+
+
+@app.get("/radio_info/")
+async def get_radio_info(radio_url: str, db: Session = Depends(get_db)):
+    """
+    Endpoint para informações da rádio, recebendo a URL como parâmetro de consulta.
+    """
     try:
-        title = await get_mp3_stream_title(url, interval)
+        # Obtém o título da stream usando a função get_stream_title
+        title = await get_mp3_stream_title(radio_url)
         if not title:
             raise HTTPException(status_code=404, detail="Failed to retrieve stream title")
 
         artist, song = extract_artist_and_song(title)
         art_url = get_album_art(artist, song)
 
-        # Obtém a última música tocada do banco de dados
-        last_played_db = db.query(LastPlayedSong).filter_by(radio_url=url).first()
+        # --- Lógica de atualização do banco de dados ---
+        last_played_db = db.query(LastPlayedSong).filter_by(radio_url=radio_url).first()
 
-        # Verifica se a música mudou e se passou tempo suficiente
         if (
             last_played_db is None
             or (artist, song) != (last_played_db.artist, last_played_db.song)
             and (datetime.utcnow() - last_played_db.played_at) > timedelta(seconds=MIN_HISTORY_INTERVAL)
         ):
-            # Salva a música no histórico
-            new_song = SongHistory(radio_url=url, artist=artist, song=song)
+            new_song = SongHistory(radio_url=radio_url, artist=artist, song=song)
             db.add(new_song)
 
-            # Atualiza a última música tocada no banco de dados
             if last_played_db is None:
-                last_played_db = LastPlayedSong(radio_url=url, artist=artist, song=song)
+                last_played_db = LastPlayedSong(radio_url=radio_url, artist=artist, song=song)
                 db.add(last_played_db)
             else:
                 last_played_db.artist = artist
                 last_played_db.song = song
-                last_played_db.played_at = datetime.utcnow()  # Define played_at como aware
+                last_played_db.played_at = datetime.utcnow()
 
             db.commit()
 
-        return {"artist": artist, "song": song, "art": art_url}
+        # --- Buscar informações para a resposta ---
+        last_played = db.query(LastPlayedSong).filter_by(radio_url=radio_url).first()
+        history = (
+            db.query(SongHistory)
+            .filter(SongHistory.radio_url == radio_url)
+            .order_by(SongHistory.played_at.desc())
+            .limit(SONG_HISTORY_LIMIT)
+            .all()
+        )
+        # --- Fim da busca de informações ---
+
+        # --- Construir a resposta ---
+        response = {
+            "songtitle": f"{last_played.song if last_played else None} - {last_played.artist if last_played else None}",
+            "artist": last_played.artist if last_played else None,
+            "song": last_played.song if last_played else None,
+            "art": art_url,
+            "song_history": [
+                {"song": {"title": item.song, "artist": item.artist}} for item in history
+            ],
+        }
+        # --- Fim da construção da resposta ---
+
+        return JSONResponse(content=response)
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stream: {str(e)}")
-
-@app.get("/radio_info/")
-async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(get_db)):
-    """Retorna a última música tocada e o histórico da rádio."""
-
-    # Obtém a última música tocada do banco de dados
-    last_played = db.query(LastPlayedSong).filter_by(radio_url=radio_url).first()
-
-    # Obtém o histórico da rádio
-    history = (
-        db.query(SongHistory)
-        .filter(SongHistory.radio_url == radio_url)
-        .order_by(SongHistory.played_at.desc())
-        .limit(limit)
-        .all()
-    )
-
-    # Formata a resposta JSON no novo formato
-    response = {
-        "songtitle": f"{last_played.song if last_played else None} - {last_played.artist if last_played else None}",
-        "artist": last_played.artist if last_played else None,
-        "song": last_played.song if last_played else None,
-        "song_history": [
-            {
-                "song": {
-                    "title": item.song,
-                    "artist": item.artist
-                }
-            } for item in history
-        ],
-    }
-
-    return response
 
 @app.on_event("startup")
 async def startup_event():
