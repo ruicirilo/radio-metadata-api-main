@@ -150,10 +150,34 @@ async def root():
    """
 
 
-@app.get("/get_stream_title/")
+@app.get("/now/")
 async def get_stream_title_endpoint(url: str, interval: Optional[int] = 19200) -> Optional[str]:
     """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
     return await get_mp3_stream_title(url, interval)
+
+
+@app.get("/get_stream_title/")
+async def get_stream_title(
+    url: str, interval: Optional[int] = 19200, db: Session = Depends(get_db)
+):
+    try:
+        title = await get_mp3_stream_title(
+            url, interval
+        )  # Aguarda a função assíncrona
+        if title:
+            artist, song = extract_artist_and_song(title)
+            art_url = get_album_art(
+                artist, song
+            )  # Aguarda a função assíncrona
+            return {"artist": artist, "song": song, "art": art_url}
+        else:
+            return JSONResponse(
+                {"error": "Failed to retrieve stream title"}, status_code=404
+            )
+    except Exception as e:
+        return JSONResponse(
+            {"error": f"Error fetching stream: {str(e)}"}, status_code=500
+        )
 
 
 @app.get("/radio_info/")
