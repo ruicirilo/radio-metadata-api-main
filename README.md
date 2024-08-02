@@ -1,17 +1,13 @@
-## Radioplayer metadatas's Now Playng API with Deployment Boilerplate on Digital Ocean 🚀 
+## Radioplayer metadatas's Now Playing API with Deployment Boilerplate on Digital Ocean 🚀
 
-Easily extract artist and song metadata from MP3 audio streams with this lightweight FastAPI-based application. Simply provide the audio stream URL and receive the information in a convenient JSON format.  
+Easily extract artist and song metadata from MP3 audio streams with this lightweight FastAPI-based application. Simply provide the audio stream URL and receive comprehensive now-playing information, including song title, artist, album art, and song history, in a convenient JSON format.  
 
 The accompanying repository offers a minimalist boilerplate, simplifying the process of deploying your application to Digital Ocean.
 
-![Demo Screenshot](https://i.imgur.com/r8xdU0c.png)
-
 ## Features
 
-* **Retrieval of the title from the metadata of an audio stream:** Extracts the complete title information embedded within the audio stream.
-* **Extraction of the artist and song name from the stream title:**  Intelligently parses the extracted title to identify and separate the artist and song name.
-* **Album Art Retrieval:** Fetches and displays the album artwork associated with the audio stream.
-* **Stream History Monitoring:**  Creates a historical log of processed stream links, enabling tracking and analysis of usage patterns.
+* **Retrieval of now-playing data from an audio stream:** Extracts the complete title information embedded within the audio stream and retrieves the artist, song name, and album art.
+* **Stream History Tracking:**  Creates a historical log of played songs, enabling tracking and analysis of listening patterns.
 * **Minimal FastAPI Setup:**  Provides a streamlined and efficient FastAPI implementation for easy API development and deployment.
 * **Ready-to-deploy on Digital Ocean:**  Includes a basic configuration and boilerplate code for seamless deployment on Digital Ocean servers.
 * **Basic configurations for a quick start:** Offers essential settings and parameters to get your application up and running quickly. 
@@ -54,41 +50,68 @@ Don't have an account? Get a $200 bonus to test it out!
 
 ## API Endpoints
 
-### Stream Title and Album Art
+### Get Stream Title and Album Art
 ```
 GET /get_stream_title/?url={stream_url}
 ```
-Example:
+
+**Parameters:**
+
+- `stream_url`:  The URL of the MP3 audio stream.
+
+**Example:**
 ```
 https://twj.es/get_stream_title/?url=https://stream.zeno.fm/yn65fsaurfhvv
 ```
-This will return a link to the stream’s cover image along with the title.
 
-### Radio Information and History
+**Response:**
+
+```json
+{
+    "title": "Song Title - Artist Name",
+    "art": "https://example.com/album-art.jpg" 
+}
+```
+
+
+### Get Radio Information and History
 ```
 GET /radio_info/?radio_url={stream_url}
 ```
-Example:
+
+**Parameters:**
+
+- `stream_url`:  The URL of the MP3 audio stream.
+
+**Example:**
 ```
 https://twj.es/radio_info/?radio_url=https://stream.zeno.fm/yn65fsaurfhvv
 ```
 
-### Radio History from Database
-```
-GET /radio_history/?radio_url={stream_url}&limit={optional_limit}
-```
-Example:
-```
-https://twj.es/radio_history/?radio_url=https://stream.zeno.fm/yn65fsaurfhvv&limit=10
-```
+**Response:**
 
-### Start Monitoring Radio
-```
-GET /start_monitoring/?radio_url={stream_url}
-```
-Example:
-```
-https://twj.es/start_monitoring/?radio_url=https://stream.zeno.fm/yn65fsaurfhvv
+```json
+{
+  "songtitle": "Song Title - Artist Name",
+  "artist": "Artist Name",
+  "song": "Song Title",
+  "art": "https://example.com/album-art.jpg",
+  "song_history": [
+    {
+      "song": {
+        "title": "Previous Song Title 1",
+        "artist": "Previous Artist 1"
+      }
+    },
+    {
+      "song": {
+        "title": "Previous Song Title 2",
+        "artist": "Previous Artist 2"
+      }
+    }
+    // ... more history entries
+  ]
+}
 ```
 
 ---
@@ -106,6 +129,4 @@ Contributions are welcome! Feel free to open an issue or submit a pull request f
 
 
 Happy coding! 🎉
-
-
 
