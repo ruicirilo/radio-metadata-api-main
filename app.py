@@ -189,7 +189,6 @@ async def get_stream_title(url: str, interval: Optional[int] = 19200, db: Sessio
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error fetching stream: {str(e)}")
 
-
 @app.get("/radio_info/")
 async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(get_db)):
     """Retorna a última música tocada e o histórico da rádio."""
@@ -206,20 +205,18 @@ async def get_radio_info(radio_url: str, limit: int = 5, db: Session = Depends(g
         .all()
     )
 
-    # Formata a resposta JSON
+    # Formata a resposta JSON no novo formato
     response = {
-        "last_played": {
-            "artist": last_played.artist if last_played else None,
-            "song": last_played.song if last_played else None,
-            "played_at": last_played.played_at.isoformat() if last_played else None,
-        },
-        "history": [
+        "songtitle": f"{last_played.song if last_played else None} - {last_played.artist if last_played else None}",
+        "artist": last_played.artist if last_played else None,
+        "song": last_played.song if last_played else None,
+        "song_history": [
             {
-                "artist": item.artist,
-                "song": item.song,
-                "played_at": item.played_at.isoformat(),
-            }
-            for item in history
+                "song": {
+                    "title": item.song,
+                    "artist": item.artist
+                }
+            } for item in history
         ],
     }
 
