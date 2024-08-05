@@ -192,7 +192,7 @@ async def get_radio_info(radio_url: str, db: Session = Depends(get_db)):
             raise HTTPException(status_code=404, detail="Failed to retrieve stream title")
 
         artist, song = extract_artist_and_song(title)
-        art_url = get_album_art(artist, song)
+        # --- art_url = get_album_art(artist, song)
 
         # --- Lógica de atualização do banco de dados ---
         last_played_db = db.query(LastPlayedSong).filter_by(radio_url=radio_url).first()
@@ -231,7 +231,7 @@ async def get_radio_info(radio_url: str, db: Session = Depends(get_db)):
             "songtitle": f"{last_played.song if last_played else None} - {last_played.artist if last_played else None}",
             "artist": last_played.artist if last_played else None,
             "song": last_played.song if last_played else None,
-            "art": art_url,
+            # --- "art": art_url,
             "song_history": [
                 {"song": {"title": item.song, "artist": item.artist}} for item in history
             ],
