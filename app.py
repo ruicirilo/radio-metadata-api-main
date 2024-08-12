@@ -95,6 +95,49 @@ def get_album_art(artist: str, song: str) -> Optional[str]:
         print(f"Erro ao buscar capa do álbum: {e}")
         return None
 
+def fetch_itunes_track_details(artist: str, song: str) -> Optional[Dict]:
+    """Busca informações da música na API do iTunes e retorna os detalhes."""
+    try:
+        search_url = f"https://itunes.apple.com/search?term={artist}+{song}&media=music&limit=1"
+
+        response = requests.get(search_url)
+        response.raise_for_status()
+
+        data = response.json()
+
+        if data["resultCount"] > 0:
+            track = data["results"][0]
+
+            # Converter a duração de milissegundos para minutos e segundos
+            duration_ms = track.get("trackTimeMillis", 0)  # Obtém a duração em ms
+            duration_seconds = int(duration_ms) / 1000       # Converte para segundos
+            minutes = int(duration_seconds // 60)           # Calcula os minutos
+            seconds = int(duration_seconds % 60)            # Calcula os segundos
+            duration_formatted = f"{minutes:02}:{seconds:02}" # Formata como "mm:ss"
+
+            return {
+                "results": {
+                    "artist": track.get("artistName"),
+                    "title": track.get("trackName"),
+                    "album": track.get("collectionName"),
+                    "genre": track.get("primaryGenreName"),
+                    "artwork": {
+                        "small": track.get("artworkUrl60"),
+                        "medium": track.get("artworkUrl100"),
+                        "xl": track.get("artworkUrl100").replace("100x100bb", "1000x1000bb") if track.get("artworkUrl100") else None,
+                    },
+                    "duration": duration_formatted, 
+                    "stream": track.get("trackViewUrl"),
+                    "explicit": track.get("trackExplicitness"),
+                    "year": track.get("releaseDate").split("-")[0] if track.get("releaseDate") else None,
+                }
+            }
+        else:
+            return None
+    except Exception as e:
+        print(f"Erro ao buscar detalhes da faixa na API do iTunes: {e}")
+        return None
+
 
 async def get_mp3_stream_title(streaming_url: str, interval: int = 19200) -> Optional[str]:
     """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
@@ -150,7 +193,7 @@ async def root():
    """
 
 
-@app.get("/now/")
+@app.get("/title/")
 async def get_stream_title_endpoint(url: str, interval: Optional[int] = 19200) -> Optional[str]:
     """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
     return await get_mp3_stream_title(url, interval)
@@ -178,6 +221,36 @@ async def get_stream_title(
         return JSONResponse(
             {"error": f"Error fetching stream: {str(e)}"}, status_code=500
         )
+
+
+@app.get("/get_stream_details/")
+async def get_stream_details(
+    url: str, interval: Optional[int] = 19200, db: Session = Depends(get_db)
+) -> Dict:
+    """
+    Obtém os metadados da transmissão de MP3 e busca detalhes da faixa no iTunes.
+    """
+
+    try:
+        title = await get_mp3_stream_title(url, interval)
+        if not title:
+            raise HTTPException(status_code=404, detail="Failed to retrieve stream title")
+
+        artist, song = extract_artist_and_song(title)
+
+        # Buscar detalhes da faixa no iTunes
+        track_details = fetch_itunes_track_details(artist, song)
+
+        if not track_details:
+            raise HTTPException(status_code=404, detail="Track details not found")
+
+        # --- (Lógica de atualização do banco de dados - opcional) ---
+        # Você pode manter a lógica de atualização do banco de dados aqui se precisar.
+
+        return track_details  # Retorna os detalhes da faixa diretamente
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching stream: {str(e)}")
 
 
 @app.get("/radio_info/")
