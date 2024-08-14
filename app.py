@@ -2,7 +2,8 @@ from typing import Optional, Tuple, Dict
 from datetime import datetime, timedelta, timezone
 
 import requests
-import aiohttp
+import urllib.request
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -138,37 +139,39 @@ def fetch_itunes_track_details(artist: str, song: str) -> Optional[Dict]:
         print(f"Erro ao buscar detalhes da faixa na API do iTunes: {e}")
         return None
 
-
-async def get_mp3_stream_title(streaming_url: str, interval: int = 19200) -> Optional[str]:
+# Função para obter o título da stream (versão síncrona)
+def get_mp3_stream_title(streaming_url: str, interval: int = 19200) -> Optional[str]:
     """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
     needle = b"StreamTitle='"
     ua = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/27.0.1453.110 Safari/537.36"
     headers = {"Icy-MetaData": "1", "User-Agent": ua}
 
     try:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(streaming_url, headers=headers) as response:
-                meta_data_interval = None
-                for key, value in response.headers.items():
-                    if key.lower() == "icy-metaint":
-                        meta_data_interval = int(value)
-                        break
+        req = urllib.request.Request(streaming_url, headers=headers)
+        response = urllib.request.urlopen(req)
 
-                if meta_data_interval is None:
-                    return None
+        meta_data_interval = None
+        for key, value in response.headers.items():
+            if key.lower() == "icy-metaint":
+                meta_data_interval = int(value)
+                break
 
-                offset = 0
-                while True:
-                    await response.content.read(meta_data_interval)
-                    buffer = await response.content.read(interval)
-                    title_index = buffer.find(needle)
-                    if title_index != -1:
-                        title = buffer[title_index + len(needle) :].split(b";")[0].decode(
-                            "utf-8", errors="replace"
-                        )
-                        return title
-                    offset += meta_data_interval + interval
-    except (aiohttp.ClientError, ValueError) as e:
+        if meta_data_interval is None:
+            return None
+
+        offset = 0
+        while True:
+            response.read(meta_data_interval)
+            buffer = response.read(interval)
+            title_index = buffer.find(needle)
+            if title_index != -1:
+                title = buffer[title_index + len(needle):].split(b";")[0].decode(
+                    "utf-8", errors="replace"
+                )
+                return title
+            offset += meta_data_interval + interval
+
+    except (urllib.error.URLError, ValueError) as e:
         print(f"Erro ao obter título da stream: {e}")
         return None
 
@@ -194,24 +197,24 @@ async def root():
 
 
 @app.get("/title/")
-async def get_stream_title_endpoint(url: str, interval: Optional[int] = 19200) -> Optional[str]:
+def get_stream_title_endpoint(url: str, interval: Optional[int] = 19200) -> Optional[str]:
     """Obtém o título da transmissão de MP3 a partir dos metadados ICY."""
-    return await get_mp3_stream_title(url, interval)
+    return get_mp3_stream_title(url, interval)
 
 
 @app.get("/get_stream_title/")
-async def get_stream_title(
+def get_stream_title(
     url: str, interval: Optional[int] = 19200, db: Session = Depends(get_db)
 ):
     try:
-        title = await get_mp3_stream_title(
+        title = get_mp3_stream_title(
             url, interval
-        )  # Aguarda a função assíncrona
+        )
         if title:
             artist, song = extract_artist_and_song(title)
             art_url = get_album_art(
                 artist, song
-            )  # Aguarda a função assíncrona
+            )  
             return {"artist": artist, "song": song, "art": art_url}
         else:
             return JSONResponse(
@@ -224,7 +227,7 @@ async def get_stream_title(
 
 
 @app.get("/get_stream_details/")
-async def get_stream_details(
+def get_stream_details(
     url: str, interval: Optional[int] = 19200, db: Session = Depends(get_db)
 ) -> Dict:
     """
@@ -232,7 +235,7 @@ async def get_stream_details(
     """
 
     try:
-        title = await get_mp3_stream_title(url, interval)
+        title = get_mp3_stream_title(url, interval)
         if not title:
             raise HTTPException(status_code=404, detail="Failed to retrieve stream title")
 
@@ -254,13 +257,13 @@ async def get_stream_details(
 
 
 @app.get("/radio_info/")
-async def get_radio_info(radio_url: str, db: Session = Depends(get_db)):
+def get_radio_info(radio_url: str, db: Session = Depends(get_db)):
     """
     Endpoint para informações da rádio, recebendo a URL como parâmetro de consulta.
     """
     try:
         # Obtém o título da stream usando a função get_stream_title
-        title = await get_mp3_stream_title(radio_url)
+        title = get_mp3_stream_title(radio_url)
         if not title:
             raise HTTPException(status_code=404, detail="Failed to retrieve stream title")
 
